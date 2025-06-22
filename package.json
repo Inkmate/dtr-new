@@ -1,0 +1,56 @@
+{
+  "name": "biometric-converter",
+  "version": "1.0.0",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "Developer-Winefred Malones",
+  "license": "ISC",
+  "dependencies": {
+    "@tailwindcss/cli": "^4.1.7",
+    "better-sqlite3": "^11.10.0",
+    "body-parser": "^2.2.0",
+    "ejs": "^3.1.10",
+    "express": "^5.1.0",
+    "multer": "^1.4.5-lts.2",
+    "tailwindcss": "^4.1.7",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "electron": "^36.4.0",
+    "electron-builder": "^26.0.12"
+  },
+  "description": "This is for generating DTR",
+  "build": {
+    "appId": "com.yourcompany.lgupat",
+    "productName": "Biometric to DTR",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "package.json",
+      "app/**/*",
+      "routes/**/*",
+      "views/**/*",
+      "public/**/*"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "build/printer.ico"
+    },
+    "mac": {
+      "target": "dmg",
+      "icon": "build/icon.icns"
+    },
+    "linux": {
+      "target": "AppImage",
+      "icon": "build/icon.png"
+    }
+  }
+}

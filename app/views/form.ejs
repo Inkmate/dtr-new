@@ -1,0 +1,903 @@
+<!--form.ejs-->
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Daily Time Record</title>
+		<!-- Using your local Tailwind CSS output.css -->
+		<link href="./output.css" rel="stylesheet" />
+		<style>
+			/* Toast Notification Styles */
+			.toast-container {
+				position: fixed;
+				top: 20px;
+				left: 50%;
+				transform: translateX(-50%);
+				z-index: 1000;
+				display: none; /* Hidden by default */
+				opacity: 0;
+				transition: opacity 0.3s ease-in-out;
+			}
+
+			.toast-message {
+				background-color: rgba(0, 0, 0, 0.75);
+				color: white;
+				padding: 10px 20px;
+				border-radius: 8px;
+				font-size: 0.9rem;
+				box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+				white-space: nowrap; /* Prevent text wrapping */
+			}
+
+			.toast-container.show {
+				display: block;
+				opacity: 1;
+			}
+
+			/* Custom Modal Styles */
+			.modal-overlay {
+				position: fixed;
+				top: 0;
+				left: 0;
+				width: 100%;
+				height: 100%;
+				background-color: rgba(0, 0, 0, 0.5);
+				display: flex;
+				justify-content: center;
+				align-items: center;
+				z-index: 1001; /* Higher than toast */
+				visibility: hidden;
+				opacity: 0;
+				transition: visibility 0s, opacity 0.3s ease-in-out;
+			}
+
+			.modal-overlay.show {
+				visibility: visible;
+				opacity: 1;
+			}
+
+			.modal-content {
+				background-color: white;
+				padding: 20px;
+				border-radius: 8px;
+				box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+				text-align: center;
+				max-width: 400px;
+				width: 90%;
+			}
+
+			.modal-buttons {
+				margin-top: 20px;
+				display: flex;
+				justify-content: center;
+				gap: 10px;
+			}
+
+			.modal-buttons button {
+				padding: 8px 16px;
+				border-radius: 6px;
+				font-weight: 500;
+				cursor: pointer;
+				transition: background-color 0.2s ease;
+			}
+
+			.modal-buttons .confirm-yes {
+				background-color: #dc2626; /* Red-500 */
+				color: white;
+			}
+
+			.modal-buttons .confirm-yes:hover {
+				background-color: #b91c1c; /* Red-600 */
+			}
+
+			.modal-buttons .confirm-no {
+				background-color: #6b7280; /* Gray-500 */
+				color: white;
+			}
+
+			.modal-buttons .confirm-no:hover {
+				background-color: #4b5563; /* Gray-600 */
+			}
+		</style>
+	</head>
+	<body class="bg-gray-100 p-6 font-sans">
+		<div class="max-w-7xl mx-auto space-y-6">
+			<h1 class="text-3xl font-bold text-center mb-6">Daily Time Record</h1>
+
+			<!-- Container for both search and upload forms -->
+			<div class="space-y-6">
+				<!-- Search Form -->
+				<form
+					id="searchForm"
+					action="/form"
+					method="GET"
+					class="bg-white shadow-md rounded-lg p-6 space-y-4"
+				>
+					<div
+						class="flex flex-col md:flex-row md:space-x-4 space-y-4 md:space-y-0 items-end"
+					>
+						<div class="flex-1">
+							<label class="block text-sm font-semibold mb-1">
+								Search by Employee Name (e.g., Juan Tamad)
+							</label>
+							<input
+								type="text"
+								name="searchQuery"
+								id="searchQueryInput"
+								list="employee-suggestions"
+								value="<%= (empName && month) ? empName + '-' + month : empName || '' %>"
+								class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+								placeholder="Type name or select from suggestions"
+							/>
+							<datalist id="employee-suggestions">
+								<% allEmployees.forEach(employee => { %>
+								<option value="<%= employee.display %>"><% }) %></option>
+							</datalist>
+						</div>
+						<button
+							type="submit"
+							class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 h-10"
+						>
+							Search
+						</button>
+						<!-- Add New DTR Button (resets form, not batch) -->
+						<a
+							href="/form"
+							class="inline-block bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 h-10 flex items-center justify-center"
+						>
+							Reset
+						</a>
+					</div>
+				</form>
+
+				<!-- Upload Form (NOW SEPARATE) -->
+				<form
+					id="uploadForm"
+					action="/upload"
+					method="POST"
+					enctype="multipart/form-data"
+					class="bg-white shadow-md rounded-lg p-6 space-y-4 mt-4"
+				>
+					<div
+						class="flex flex-col md:flex-row md:space-x-4 space-y-4 md:space-y-0 items-end"
+					>
+						<div class="flex-1">
+							<label class="block text-sm font-semibold mb-1">
+								Upload File
+							</label>
+							<input
+								type="file"
+								name="excelFile"
+								id="excelFileInput"
+								accept=".xlsx, .xls"
+								class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
+							/>
+						</div>
+						<button
+							type="submit"
+							class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-red-700 h-10"
+						>
+							Upload
+						</button>
+					</div>
+				</form>
+
+				<!-- Time Record Form -->
+				<div class="flex justify-center">
+					<form
+						action="/generate"
+						method="POST"
+						class="bg-white shadow-md rounded-lg p-2 overflow-x-auto"
+					>
+						<input
+							type="hidden"
+							name="empId"
+							id="formEmpId"
+							value="<%= empId || '' %>"
+						/>
+						<input
+							type="hidden"
+							name="empName"
+							id="formEmpName"
+							value="<%= empName || '' %>"
+						/>
+						<input
+							type="hidden"
+							name="month"
+							id="formMonth"
+							value="<%= month || '' %>"
+						/>
+
+						<div
+							id="data-container"
+							data-days-in-month="<%= daysInMonth > 0 ? daysInMonth : 31 %>"
+							hidden
+						></div>
+
+						<div class="overflow-x-auto">
+							<table
+								class="min-w-[1200px] text-sm border border-gray-100 text-center"
+							>
+								<thead class="bg-gray-200">
+									<tr>
+										<th class="px-4 py-2 border">Day</th>
+										<th class="px-4 py-2 border">AM Arrival</th>
+										<th class="px-4 py-2 border">AM Departure</th>
+										<th class="px-4 py-2 border">PM Arrival</th>
+										<th class="px-4 py-2 border">PM Departure</th>
+										<th class="px-4 py-2 border">Undertime Hours</th>
+										<th class="px-4 py-2 border">Undertime Minutes</th>
+									</tr>
+								</thead>
+								<tbody id="dailyTimeRecordTableBody">
+									<% const actualDaysInMonth = daysInMonth > 0 ? daysInMonth :
+									31; for (let i = 1; i <= actualDaysInMonth; i++) { %>
+									<tr class="hover:bg-gray-50">
+										<td class="px-4 py-2 border">
+											<%= formData[i] ? formData[i].dateWeekday : i %>
+										</td>
+										<td class="px-2 py-1 border">
+											<input type="time" name="am_arrival_<%= i %>"
+											id="am_arrival_<%= i %>" value="<%= formData[i] &&
+											formData[i].am_arrival ? formData[i].am_arrival : '' %>"
+											class="border rounded px-2 py-1 w-full" <%= (new Date(new
+											Date().getFullYear(), (month ?
+											parseInt(month.split('-')[1]) - 1 : 0), i).getDay() === 0
+											|| new Date(new Date().getFullYear(), (month ?
+											parseInt(month.split('-')[1]) - 1 : 0), i).getDay() === 6)
+											? 'disabled' : '' %> />
+										</td>
+										<td class="px-2 py-1 border">
+											<input type="time" name="am_departure_<%= i %>"
+											id="am_departure_<%= i %>" value="<%= formData[i] &&
+											formData[i].am_departure ? formData[i].am_departure : ''
+											%>" class="border rounded px-2 py-1 w-full" <%= (new
+											Date(new Date().getFullYear(), (month ?
+											parseInt(month.split('-')[1]) - 1 : 0), i).getDay() === 0
+											|| new Date(new Date().getFullYear(), (month ?
+											parseInt(month.split('-')[1]) - 1 : 0), i).getDay() === 6)
+											? 'disabled' : '' %> />
+										</td>
+										<td class="px-2 py-1 border">
+											<input type="time" name="pm_arrival_<%= i %>"
+											id="pm_arrival_<%= i %>" value="<%= formData[i] &&
+											formData[i].pm_arrival ? formData[i].pm_arrival : '' %>"
+											class="border rounded px-2 py-1 w-full" <%= (new Date(new
+											Date().getFullYear(), (month ?
+											parseInt(month.split('-')[1]) - 1 : 0), i).getDay() === 0
+											|| new Date(new Date().getFullYear(), (month ?
+											parseInt(month.split('-')[1]) - 1 : 0), i).getDay() === 6)
+											? 'disabled' : '' %> />
+										</td>
+										<td class="px-2 py-1 border">
+											<input type="time" name="pm_departure_<%= i %>"
+											id="pm_departure_<%= i %>" value="<%= formData[i] &&
+											formData[i].pm_departure ? formData[i].pm_departure : ''
+											%>" class="border rounded px-2 py-1 w-full" <%= (new
+											Date(new Date().getFullYear(), (month ?
+											parseInt(month.split('-')[1]) - 1 : 0), i).getDay() === 0
+											|| new Date(new Date().getFullYear(), (month ?
+											parseInt(month.split('-')[1]) - 1 : 0), i).getDay() === 6)
+											? 'disabled' : '' %> />
+										</td>
+										<td
+											class="px-2 py-1 border undertime-hours-cell"
+											id="uh_<%= i %>"
+										>
+											<%= formData[i]?.undertime_hours || '' %>
+
+											<input
+												type="hidden"
+												name="undertime_hours_<%= i %>"
+												id="input_uh_<%= i %>"
+												value="<%= formData[i] && formData[i].undertime_hours !== undefined ? formData[i].undertime_hours : '' %>"
+											/>
+										</td>
+										<td
+											class="px-2 py-1 border undertime-minutes-cell"
+											id="um_<%= i %>"
+										>
+											<%= (formData[i]?.undertime_minutes === 'Saturday' ||
+											formData[i]?.undertime_minutes === 'Sunday') ?
+											formData[i].undertime_minutes :
+											String(formData[i]?.undertime_minutes || '').padStart(2,
+											'0') %>
+
+											<input
+												type="hidden"
+												name="undertime_minutes_<%= i %>"
+												id="input_um_<%= i %>"
+												value="<%= formData[i] && formData[i].undertime_minutes !== undefined ? String(formData[i].undertime_minutes).padStart(2, '0') : '' %>"
+											/>
+										</td>
+									</tr>
+									<% } %>
+								</tbody>
+								<tfoot>
+									<tr class="font-bold bg-gray-100">
+										<td class="px-4 py-2 border text-right" colspan="5">
+											Total
+										</td>
+										<td class="px-2 py-1 border" id="total_uh">0</td>
+										<td class="px-2 py-1 border" id="total_um">0</td>
+									</tr>
+								</tfoot>
+							</table>
+						</div>
+
+						<div class="text-right mt-4 flex justify-end space-x-2">
+							<button
+								type="button"
+								id="addToBatch"
+								class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+							>
+								Add
+							</button>
+							<button
+								type="submit"
+								class="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700"
+							>
+								Generate
+							</button>
+						</div>
+					</form>
+				</div>
+
+				<!-- Batch DTR Generation Section -->
+				<div class="bg-white shadow-md rounded-lg p-6 space-y-4">
+					<h2 class="text-xl font-bold mb-2">DTRs in Batch for Combined PDF</h2>
+					<ul id="batchList" class="space-y-2">
+						<!-- DTRs added to batch will be listed here -->
+					</ul>
+					<div class="flex justify-end space-x-2">
+						<button
+							type="button"
+							id="clearBatch"
+							class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+						>
+							Clear
+						</button>
+						<button
+							type="button"
+							id="generateBatchDTR"
+							class="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700"
+						>
+							Generate
+						</button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Toast Notification Container -->
+		<div id="toast-container" class="toast-container">
+			<div id="toast-message" class="toast-message"></div>
+		</div>
+
+		<!-- Custom Confirmation Modal -->
+		<div id="confirmationModal" class="modal-overlay">
+			<div class="modal-content">
+				<p id="modalMessage" class="text-lg font-semibold text-gray-800">
+					Are you sure you want to clear all DTRs from the batch?
+				</p>
+				<div class="modal-buttons">
+					<button id="confirmYes" class="confirm-yes">Yes</button>
+					<button id="confirmNo" class="confirm-no">No</button>
+				</div>
+			</div>
+		</div>
+
+		<script>
+			// Declare actualDaysInMonth at a higher scope so it can be updated and accessed by multiple functions
+			let actualDaysInMonth;
+
+			document.addEventListener("DOMContentLoaded", function () {
+				const searchForm = document.getElementById("searchForm");
+				const searchQueryInput = document.getElementById("searchQueryInput"); // Renamed from searchEmpNameInput
+				const formEmpId = document.getElementById("formEmpId");
+				const formEmpName = document.getElementById("formEmpName");
+				const formMonth = document.getElementById("formMonth");
+				// Renamed to target the new tbody for daily records
+				const dailyTimeRecordTableBody = document.getElementById(
+					"dailyTimeRecordTableBody"
+				);
+				const uploadForm = document.getElementById("uploadForm"); // Get the upload form
+
+				const dataContainer = document.getElementById("data-container");
+				// Initialize actualDaysInMonth based on initial EJS value, or default to 31
+				actualDaysInMonth =
+					parseInt(dataContainer.dataset.daysInMonth) > 0
+						? parseInt(dataContainer.dataset.daysInMonth)
+						: 31;
+
+				const batchList = document.getElementById("batchList");
+				const generateBatchDTRButton =
+					document.getElementById("generateBatchDTR");
+				const addToBatchButton = document.getElementById("addToBatch");
+				const clearBatchButton = document.getElementById("clearBatch");
+
+				// Modal elements
+				const confirmationModal = document.getElementById("confirmationModal");
+				const modalMessage = document.getElementById("modalMessage");
+				const confirmYesButton = document.getElementById("confirmYes");
+				const confirmNoButton = document.getElementById("confirmNo");
+
+				// Load batch from sessionStorage or initialize
+				let selectedDTRs =
+					JSON.parse(sessionStorage.getItem("selectedDTRs")) || [];
+
+				// Function to show toast messages
+				function showToast(message, duration = 3000) {
+					const toastContainer = document.getElementById("toast-container");
+					const toastMessage = document.getElementById("toast-message");
+
+					if (toastContainer && toastMessage) {
+						toastMessage.textContent = message;
+						toastContainer.classList.add("show");
+
+						setTimeout(() => {
+							toastContainer.classList.remove("show");
+						}, duration);
+					}
+				}
+
+				// Function to show custom confirmation modal
+				function showConfirmationModal(message, onConfirm) {
+					modalMessage.textContent = message;
+					confirmationModal.classList.add("show");
+
+					// Remove previous listeners to prevent multiple calls
+					confirmYesButton.onclick = null;
+					confirmNoButton.onclick = null;
+
+					confirmYesButton.onclick = () => {
+						confirmationModal.classList.remove("show");
+						onConfirm(true);
+					};
+					confirmNoButton.onclick = () => {
+						confirmationModal.classList.remove("show");
+						onConfirm(false);
+					};
+				}
+
+				// Function to calculate undertime for a single day
+				function calculateUndertime(
+					amArrival,
+					amDeparture,
+					pmArrival,
+					pmDeparture,
+					dayOfWeek
+				) {
+					let undertimeHours = "";
+					let undertimeMinutes = "";
+
+					const standardWorkMinutes = 480; // 8 hours * 60 minutes
+					let workedMinutes = 0;
+
+					// Convert times to minutes from midnight
+					const timeToMinutes = (timeStr) => {
+						if (!timeStr) return null;
+						const [hours, minutes] = timeStr.split(":").map(Number);
+						return hours * 60 + minutes;
+					};
+
+					const amInMin = timeToMinutes(amArrival);
+					const amOutMin = timeToMinutes(amDeparture);
+					const pmInMin = timeToMinutes(pmArrival);
+					const pmOutMin = timeToMinutes(pmDeparture);
+
+					if (amInMin !== null && amOutMin !== null && amOutMin > amInMin) {
+						workedMinutes += amOutMin - amInMin;
+					}
+					if (pmInMin !== null && pmOutMin !== null && pmOutMin > pmInMin) {
+						workedMinutes += pmOutMin - pmInMin;
+					}
+
+					const noInputs =
+						amArrival === "" &&
+						amDeparture === "" &&
+						pmArrival === "" &&
+						pmDeparture === "";
+
+					if (workedMinutes === 0 && noInputs) {
+						// If no time entered at all — mark full undertime (even on weekends)
+						undertimeHours = 8;
+						undertimeMinutes = 0;
+					} else {
+						const undertimeMinutesCalculated = Math.max(
+							standardWorkMinutes - workedMinutes,
+							0
+						);
+						undertimeHours = Math.floor(undertimeMinutesCalculated / 60);
+						undertimeMinutes = Math.round(undertimeMinutesCalculated % 60);
+					}
+
+					return {undertimeHours, undertimeMinutes};
+				}
+
+				// Function to update undertime for a specific row
+				function updateUndertimeForRow(dayNumber) {
+					const year = new Date().getFullYear(); // Assuming current year for date calculations
+					// Retrieve month from the hidden input field, which will be updated by search results
+					const currentMonthValue = formMonth.value;
+					const currentMonthNum = currentMonthValue
+						? parseInt(currentMonthValue.split("-")[1])
+						: new Date().getMonth() + 1;
+					const dayOfWeek = new Date(
+						year,
+						currentMonthNum - 1,
+						dayNumber
+					).getDay();
+
+					const amArrivalInput = document.getElementById(
+						`am_arrival_${dayNumber}`
+					);
+					const amDepartureInput = document.getElementById(
+						`am_departure_${dayNumber}`
+					);
+					const pmArrivalInput = document.getElementById(
+						`pm_arrival_${dayNumber}`
+					);
+					const pmDepartureInput = document.getElementById(
+						`pm_departure_${dayNumber}`
+					);
+
+					const uhCell = document.getElementById(`uh_${dayNumber}`);
+					const umCell = document.getElementById(`um_${dayNumber}`);
+					// Get references to the hidden input fields
+					const inputUh = document.getElementById(`input_uh_${dayNumber}`);
+					const inputUm = document.getElementById(`input_um_${dayNumber}`);
+
+					// Ensure inputs exist and are not disabled (e.g., weekends)
+					if (
+						amArrivalInput &&
+						amDepartureInput &&
+						pmArrivalInput &&
+						pmDepartureInput
+					) {
+						const {undertimeHours, undertimeMinutes} = calculateUndertime(
+							amArrivalInput.value,
+							amDepartureInput.value,
+							pmArrivalInput.value,
+							pmDepartureInput.value,
+							dayOfWeek
+						);
+
+						// Check if elements exist before setting textContent AND value for hidden inputs
+						if (uhCell) uhCell.textContent = undertimeHours;
+						if (umCell)
+							umCell.textContent = String(undertimeMinutes).padStart(2, "0"); // Pad minutes with leading zero
+
+						if (inputUh) inputUh.value = undertimeHours; // Update hidden input
+						if (inputUm)
+							inputUm.value = String(undertimeMinutes).padStart(2, "0"); // Update hidden input
+					} else {
+						// For disabled days (weekends) or missing inputs, clear undertime display
+						if (uhCell) uhCell.textContent = "";
+						if (umCell) umCell.textContent = "";
+
+						if (inputUh) inputUh.value = ""; // Clear hidden input
+						if (inputUm) inputUm.value = ""; // Clear hidden input
+					}
+
+					updateTotalUndertime(); // Calls total update after each row update
+				}
+
+				// Function to update total undertime
+				function updateTotalUndertime() {
+					let totalUndertimeHours = 0;
+					let totalUndertimeMinutes = 0;
+
+					for (let i = 1; i <= actualDaysInMonth; i++) {
+						// Read from the HIDDEN INPUTS for summation, as these are the values that will be submitted
+						const inputUhElement = document.getElementById(`input_uh_${i}`);
+						const inputUmElement = document.getElementById(`input_um_${i}`);
+
+						// Add null checks before parsing value and trim it
+						// Also, handle empty string as 0 for parseInt
+						const uhVal = inputUhElement?.value.trim();
+						const umVal = inputUmElement?.value.trim();
+
+						const isWeekendLabel = (val) =>
+							val === "Saturday" || val === "Sunday";
+
+						if (!isWeekendLabel(uhVal) && !isWeekendLabel(umVal)) {
+							const uh = parseInt(uhVal || "0");
+							const um = parseInt(umVal || "0");
+
+							totalUndertimeHours += isNaN(uh) ? 0 : uh;
+							totalUndertimeMinutes += isNaN(um) ? 0 : um;
+						}
+					}
+					totalUndertimeHours += Math.floor(totalUndertimeMinutes / 60);
+					totalUndertimeMinutes = totalUndertimeMinutes % 60;
+
+					// Also add null checks for safety, though these are typically static
+					const totalUhElement = document.getElementById("total_uh");
+					const totalUmElement = document.getElementById("total_um");
+
+					if (totalUhElement) {
+						totalUhElement.textContent = totalUndertimeHours;
+					}
+					if (totalUmElement) {
+						totalUmElement.textContent = String(totalUndertimeMinutes).padStart(
+							2,
+							"0"
+						);
+					}
+				}
+
+				// Function to render time record table with new data
+				function renderTimeRecordTable(employeeData, month) {
+					const [yearStr, monthStr] = month.split("-");
+					const year = parseInt(yearStr);
+					const monthNum = parseInt(monthStr);
+					// Update global actualDaysInMonth based on fetched data
+					actualDaysInMonth = new Date(year, monthNum, 0).getDate();
+
+					const dailyRecords = employeeData.formData[month]; // Get specific month's data
+
+					let tableHtml = "";
+					for (let i = 1; i <= actualDaysInMonth; i++) {
+						const dayData = dailyRecords[i] || {}; // Get data for the specific day
+						const dateWeekday =
+							dayData.dateWeekday ||
+							`${String(i).padStart(2, "0")} ${new Date(
+								year,
+								monthNum - 1,
+								i
+							).toLocaleString("en-US", {weekday: "short"})}`;
+						const amArrival = dayData.am_arrival || "";
+						const amDeparture = dayData.am_departure || "";
+						const pmArrival = dayData.pm_arrival || "";
+						const pmDeparture = dayData.pm_departure || "";
+						// Retrieve undertime directly from fetched data, defaulting to empty string if undefined/null
+						const undertimeHours =
+							dayData.undertime_hours !== undefined
+								? dayData.undertime_hours
+								: "";
+						const undertimeMinutes =
+							dayData.undertime_minutes !== undefined
+								? String(dayData.undertime_minutes).padStart(2, "0")
+								: "";
+
+						const dayOfWeek = new Date(year, monthNum - 1, i).getDay();
+						const isDisabled =
+							dayOfWeek === 0 || dayOfWeek === 6 ? "disabled" : "";
+
+						tableHtml += `
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-4 py-2 border">${dateWeekday}</td>
+                            <td class="px-2 py-1 border">
+                                <input type="time" name="am_arrival_${i}" id="am_arrival_${i}" value="${amArrival}" class="border rounded px-2 py-1 w-full" ${isDisabled} />
+                            </td>
+                            <td class="px-2 py-1 border">
+                                <input type="time" name="am_departure_${i}" id="am_departure_${i}" value="${amDeparture}" class="border rounded px-2 py-1 w-full" ${isDisabled} />
+                            </td>
+                            <td class="px-2 py-1 border">
+                                <input type="time" name="pm_arrival_${i}" id="pm_arrival_${i}" value="${pmArrival}" class="border rounded px-2 py-1 w-full" ${isDisabled} />
+                            </td>
+                            <td class="px-2 py-1 border">
+                                <input type="time" name="pm_departure_${i}" id="pm_departure_${i}" value="${pmDeparture}" class="border rounded px-2 py-1 w-full" ${isDisabled} />
+                            </td>
+                            <td class="px-2 py-1 border undertime-hours-cell" id="uh_${i}">
+                                ${undertimeHours}
+                                <input type="hidden" name="undertime_hours_${i}" id="input_uh_${i}" value="${undertimeHours}" />
+                            </td>
+                            <td class="px-2 py-1 border undertime-minutes-cell" id="um_${i}">
+                                ${undertimeMinutes}
+                                <input type="hidden" name="undertime_minutes_${i}" id="input_um_${i}" value="${undertimeMinutes}" />
+                            </td>
+                        </tr>
+                    `;
+					}
+
+					dailyTimeRecordTableBody.innerHTML = tableHtml; // Use the new tbody
+
+					// Re-attach event listeners to new input fields
+					for (let i = 1; i <= actualDaysInMonth; i++) {
+						const amArrivalInput = document.getElementById(`am_arrival_${i}`);
+						const amDepartureInput = document.getElementById(
+							`am_departure_${i}`
+						);
+						const pmArrivalInput = document.getElementById(`pm_arrival_${i}`);
+						const pmDepartureInput = document.getElementById(
+							`pm_departure_${i}`
+						);
+
+						// Attach change listeners to time inputs only
+						if (amArrivalInput)
+							amArrivalInput.addEventListener("change", () =>
+								updateUndertimeForRow(i)
+							);
+						if (amDepartureInput)
+							amDepartureInput.addEventListener("change", () =>
+								updateUndertimeForRow(i)
+							);
+						if (pmArrivalInput)
+							pmArrivalInput.addEventListener("change", () =>
+								updateUndertimeForRow(i)
+							);
+						if (pmDepartureInput)
+							pmDepartureInput.addEventListener("change", () =>
+								updateUndertimeForRow(i)
+							);
+					}
+
+					// Delay total calculation to ensure DOM is fully updated using requestAnimationFrame
+					window.requestAnimationFrame(updateTotalUndertime);
+				}
+
+				// --- Event Listeners ---
+
+				// Search Form Submission Handler (uses GET redirect)
+				searchForm.addEventListener("submit", function (event) {
+					event.preventDefault(); // Prevent default form submission
+
+					const searchQuery = searchQueryInput.value.trim();
+					if (!searchQuery) {
+						showToast(
+							"Please enter an employee name or select from suggestions.",
+							3000
+						);
+						return;
+					}
+
+					const params = new URLSearchParams();
+					// Append the searchQuery directly. The server-side Node.js will handle parsing this value.
+					params.append("searchQuery", searchQuery);
+
+					// Redirect to the base route with parameters
+					window.location.href = `/form?${params.toString()}`;
+				});
+
+				// Upload Form Submission Handler
+				uploadForm.addEventListener("submit", function (event) {
+					const excelFileInput = document.getElementById("excelFileInput");
+					if (excelFileInput && excelFileInput.files.length > 0) {
+						showToast("Uploading file and processing data...");
+					} else {
+						showToast("Please select an Excel file to upload.", 3000);
+						event.preventDefault(); // Prevent form submission if no file
+					}
+				});
+
+				// Initial calculation on page load for all rows (only if form data exists)
+				if (formEmpId.value && formMonth.value) {
+					// Check if initial render has data
+					// When page loads with pre-filled data, parse actualDaysInMonth from formMonth
+					const [yearStr, monthStr] = formMonth.value.split("-");
+					const year = parseInt(yearStr);
+					const monthNum = parseInt(monthStr);
+					if (
+						!isNaN(year) &&
+						!isNaN(monthNum) &&
+						monthNum >= 1 &&
+						monthNum <= 12
+					) {
+						actualDaysInMonth = new Date(year, monthNum, 0).getDate();
+					}
+					updateTotalUndertime(); // Just ensure total is calculated from initially rendered values
+				} else {
+					updateTotalUndertime(); // Just calculate totals (will be 0) if no data
+				}
+
+				// Function to render the batch list
+				function renderBatchList() {
+					batchList.innerHTML = ""; // Clear current list
+					if (selectedDTRs.length === 0) {
+						batchList.innerHTML =
+							'<li class="text-gray-500">No DTRs in batch.</li>';
+						generateBatchDTRButton.disabled = true;
+						clearBatchButton.disabled = true;
+					} else {
+						selectedDTRs.forEach((dtr, index) => {
+							const li = document.createElement("li");
+							li.className =
+								"flex justify-between items-center bg-gray-50 p-2 rounded";
+							li.innerHTML = `
+                            <span>${dtr.empName} (${dtr.month})</span>
+                            <button type="button" data-index="${index}" class="remove-from-batch text-red-500 hover:text-red-700 text-xs px-2 py-1 rounded">X</button>
+                        `;
+							batchList.appendChild(li);
+						});
+						generateBatchDTRButton.disabled = false;
+						clearBatchButton.disabled = false;
+					}
+					sessionStorage.setItem("selectedDTRs", JSON.stringify(selectedDTRs)); // Save to session storage
+				}
+
+				// Add to Batch button click handler
+				addToBatchButton.addEventListener("click", function () {
+					const currentEmpName = formEmpName.value;
+					const currentEmpId = formEmpId.value;
+					const currentMonth = formMonth.value;
+
+					if (currentEmpName && currentEmpId && currentMonth) {
+						// Check if already in batch
+						const exists = selectedDTRs.some(
+							(dtr) => dtr.empId === currentEmpId && dtr.month === currentMonth
+						);
+						if (!exists) {
+							selectedDTRs.push({
+								empId: currentEmpId,
+								empName: currentEmpName,
+								month: currentMonth,
+							});
+							renderBatchList();
+							showToast("DTR added to batch!");
+						} else {
+							showToast("This DTR is already in the batch!");
+						}
+					} else {
+						showToast("Please search for an employee and month first.");
+					}
+				});
+
+				// Clear Batch button click handler
+				clearBatchButton.addEventListener("click", function () {
+					if (selectedDTRs.length === 0) {
+						showToast("Batch is already empty.", 3000);
+						return;
+					}
+					showConfirmationModal(
+						"Are you sure you want to clear all DTRs from the batch?",
+						(confirmed) => {
+							if (confirmed) {
+								selectedDTRs = [];
+								renderBatchList();
+								showToast("Batch cleared!");
+							} else {
+								showToast("Batch clear cancelled.");
+							}
+						}
+					);
+				});
+
+				// Remove from Batch handler (delegated)
+				batchList.addEventListener("click", function (event) {
+					if (event.target.classList.contains("remove-from-batch")) {
+						const indexToRemove = parseInt(event.target.dataset.index);
+						selectedDTRs.splice(indexToRemove, 1);
+						renderBatchList();
+						showToast("DTR removed from batch.");
+					}
+				});
+
+				// Generate All DTRs button click handler (MODIFIED FOR FORM SUBMISSION)
+				generateBatchDTRButton.addEventListener("click", function () {
+					if (selectedDTRs.length > 0) {
+						// Create a hidden form
+						const tempForm = document.createElement("form");
+						tempForm.method = "POST";
+						tempForm.action = "/generate-batch"; // Target the batch generation route
+						tempForm.style.display = "none"; // Keep it hidden
+
+						// Create a hidden input for the dtrs data
+						const dtrsInput = document.createElement("input");
+						dtrsInput.type = "hidden";
+						dtrsInput.name = "dtrs";
+						dtrsInput.value = JSON.stringify(selectedDTRs); // Stringify the array for form submission
+
+						// Append the input to the form, and the form to the body
+						tempForm.appendChild(dtrsInput);
+						document.body.appendChild(tempForm);
+
+						// Submit the form, triggering a page navigation
+						showToast("Generating combined DTRs...", 5000);
+						tempForm.submit();
+
+						// Optional: remove the form after submission (it's no longer needed on this page)
+						document.body.removeChild(tempForm);
+					} else {
+						showToast("Please add DTRs to the batch first.");
+					}
+				});
+
+				// Initial render of the batch list on page load
+				renderBatchList();
+			});
+		</script>
+	</body>
+</html>

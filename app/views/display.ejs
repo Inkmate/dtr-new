@@ -1,0 +1,455 @@
+<!--display.ejs-->
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Daily Time Record Printout</title>
+		<link href="./output.css" rel="stylesheet" />
+		<style>
+			/* Base styles for screen preview */
+			body {
+				font-family: "Inter", sans-serif;
+				background-color: #f3f4f6;
+				color: #374151;
+				padding: 20px;
+				display: flex; /* Use flexbox for overall layout */
+				flex-direction: column; /* Stack buttons and DTRs vertically */
+				align-items: center; /* Center content horizontally */
+			}
+			.main-content-wrapper {
+				display: flex; /* This will hold the DTR containers side-by-side */
+				flex-wrap: wrap; /* Allow DTRs to wrap to the next line */
+				justify-content: center; /* Center the DTRs within the wrapper */
+				gap: 20px; /* Gap between DTR containers in preview */
+				max-width: 100%; /* Take full width of parent */
+			}
+			.dtr-container {
+				background-color: white;
+				padding: 20px; /* Reduced padding for more content space */
+				/* border-radius: 8px; <-- Removed */
+				box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+				/* Fixed width for preview to simulate print size */
+				width: 45%; /* Approximately half of a typical page width, accounting for gap */
+				box-sizing: border-box; /* Include padding and border in width */
+				margin-bottom: 20px; /* Space between rows of DTRs */
+			}
+			.dtr-header-section {
+				text-align: center;
+				margin-bottom: 10px;
+			}
+			.dtr-civil-service-form {
+				font-size: 0.75rem;
+				font-style: italic;
+				margin-bottom: 2px;
+			}
+			.dtr-title {
+				font-size: 1.25rem; /* text-xl */
+				font-weight: bold;
+				margin-bottom: 2px;
+			}
+			.dtr-separator {
+				font-size: 0.7rem;
+				margin-bottom: 10px;
+			}
+			.dtr-name-line-preview {
+				border-bottom: 1px solid #374151;
+				display: inline-block; /* Allows text to underline */
+				padding-bottom: 2px;
+				font-weight: bold;
+				font-size: 1rem; /* text-base */
+			}
+			.dtr-month-info-preview {
+				font-size: 0.75rem; /* text-xs */
+				margin-top: 5px;
+			}
+			.dtr-official-hours-preview {
+				font-size: 0.75rem; /* text-xs */
+				text-align: left;
+				margin-top: 10px;
+				margin-bottom: 10px;
+				line-height: 1.2;
+				padding-left: 0; /* Small indent for preview */
+			}
+			.dtr-official-hours-preview .indent {
+				margin-left: 0.2in; /* Indent for the second line */
+				display: block;
+			}
+
+			.dtr-table {
+				width: 100%;
+				border-collapse: collapse;
+				margin-top: 10px;
+				font-size: 0.75rem; /* Smaller font for table content */
+			}
+			.dtr-table th,
+			.dtr-table td {
+				border: 0.8px solid black; /* Changed to black border */
+				padding: 6px 4px; /* Reduced padding for cells */
+				text-align: center;
+				vertical-align: middle;
+			}
+			.dtr-table thead th {
+				background-color: white; /* Changed to black background */
+				color: black; /* Added white text for contrast */
+				font-weight: 600;
+			}
+			.dtr-table tbody td {
+				height: 1.5rem; /* Fixed height for table rows */
+			}
+			.dtr-certification-text-preview {
+				font-size: 0.75rem; /* text-xs */
+				text-align: justify;
+				margin-top: 20px;
+				line-height: 1.3;
+			}
+			.dtr-signature-section-preview {
+				margin-top: 30px;
+				text-align: center;
+				font-size: 0.75rem; /* text-xs */
+			}
+			.betwween-signature-line-preview {
+				border-bottom: 1px solid #374151;
+				width: 90%; /* Adjust width for signature line */
+				margin: 40px auto 3px auto; /* Center and provide space */
+				padding-bottom: 2px;
+				font-weight: bold;
+				font-size: 1rem; /* text-base */
+			}
+			.between-incharge-line-preview {
+				border-bottom: 1px solid #374151;
+				width: 90%;
+				margin: 40px auto 3px auto; /* Center and provide space */
+				padding-bottom: 2px;
+				font-weight: bold;
+				font-size: 1rem; /* text-base */
+			}
+			.dtr-notes {
+				margin-top: 20px;
+				font-size: 0.6rem; /* Even smaller for notes */
+				color: #6b7280;
+			}
+			.no-print {
+				/* Styles for buttons that should not be printed */
+			}
+
+			/* Print-specific styles */
+			@media print {
+				@page {
+					/* Change page size to Legal portrait */
+					size: Legal portrait;
+					/* Adjust margins for Legal. Keeping left/right at 0.3in for safety,
+           top/bottom increased slightly for more breathing room given the height. */
+					margin: 0.2in 0.05in; /* Top/Bottom 0.4in, Left/Right 0.3in */
+				}
+
+				body {
+					background-color: white;
+					padding: 0;
+					display: block;
+					margin: 0;
+					-webkit-print-color-adjust: exact;
+					color-adjust: exact;
+					font-family: "Times New Roman", serif;
+					font-size: 11pt; /* Increased base font size for Legal */
+				}
+
+				.main-content-wrapper {
+					display: grid;
+					grid-template-columns: repeat(2, 1fr);
+					/* Increased gap significantly to give more horizontal space to each DTR.
+					This will push the DTRs further apart and make them stretch wider
+					within their respective grid columns. */
+					gap: 0.5in; /* Increased gap from 0.2in */
+					width: 100%;
+					margin: 0;
+					box-sizing: border-box;
+					justify-items: stretch;
+					align-items: stretch;
+				}
+
+				.dtr-container {
+					background-color: white;
+					box-shadow: none;
+					border: 0.8px solid black;
+					/* Increased internal padding to match the larger overall scale */
+					padding: 0.15in; /* Increased from 0.12in */
+					width: 100%;
+					height: auto;
+					overflow: visible;
+					break-inside: avoid;
+					page-break-inside: avoid;
+					margin: 0;
+				}
+
+				/* Header Section - Proportional increase in font-sizes and margins */
+				.dtr-header-section {
+					margin-bottom: 4px;
+				} /* Increased space */
+				.dtr-civil-service-form {
+					text-align: left;
+					font-size: 7.5pt;
+					margin-bottom: 1.5px;
+				} /* Increased */
+				.dtr-title {
+					font-size: 10.5pt;
+					font-weight: bold;
+					margin-bottom: 1.5px;
+				} /* Increased */
+				.dtr-separator {
+					font-size: 7pt;
+					margin-bottom: 2.5px;
+				} /* Increased */
+
+				/* Name and Month Section - Proportional increase */
+				.dtr-name-line-print {
+					border-bottom: 0.8px solid black;
+					display: block;
+					padding-bottom: 0.8px; /* Slightly more padding */
+					font-weight: bold;
+					font-size: 10pt; /* Increased */
+					text-align: center;
+					width: 90%;
+					margin: 0.1in auto; /* Increased space */
+				}
+				.dtr-name-label-print {
+					font-size: 8pt;
+					margin-top: 1px;
+					margin-bottom: 2.5px;
+				} /* Increased */
+				.dtr-for-month-print {
+					font-size: 9.5pt;
+					text-align: left;
+					padding-left: 0;
+					margin-bottom: 1.1px;
+				} /* Increased */
+
+				/* Official Hours Section - Proportional increase */
+				.dtr-official-hours-print {
+					font-size: 9pt; /* Increased */
+					text-align: left;
+					line-height: 1.15; /* Slightly more line height */
+					margin-top: 3px; /* Increased space */
+					margin-bottom: 4px; /* Increased space */
+					padding-left: 0;
+				}
+				.dtr-official-hours-print .indent {
+					padding-left: 0.3in;
+					display: block;
+				} /* Increased indent */
+
+				/* Table styles - Proportional increase in font-size and padding */
+				.dtr-table {
+					width: 100%;
+					border-collapse: collapse;
+					margin-top: 3px; /* Increased space */
+					font-size: 8.5pt; /* Increased from 7.5pt */
+				}
+				.dtr-table th,
+				.dtr-table td {
+					border: 0.8px solid black;
+					padding: 1px 2px; /* Increased cell padding for better readability */
+					vertical-align: middle;
+					white-space: normal;
+				}
+				.dtr-table thead th {
+					font-weight: normal;
+					background-color: white;
+					color: black;
+				}
+				.total-row td {
+					font-weight: bold;
+					background-color: white;
+					color: black;
+				}
+				.total-row .text-right {
+					text-align: right;
+				}
+
+				/* Certification and Signature Sections - Proportional increase */
+				.dtr-certification-text-print {
+					font-size: 8.5pt; /* Increased */
+					font-style: italic;
+					text-align: justify;
+					margin-top: 0.12in; /* Increased space */
+					line-height: 1.25; /* More line height */
+				}
+				.dtr-verification-section-print {
+					margin-top: 0.08in; /* Increased space */
+					text-align: center;
+				}
+
+				/* Employee Name below certification - Proportional increase */
+				div[style*="margin-top: 0.25in"] p {
+					font-size: 10pt !important; /* Increased */
+					width: 90%;
+					margin: 0.12in auto 0px auto !important; /* Increased space */
+				}
+				div[style*="margin-top: 0.25in"]
+					div[style*="border-top: 1px solid black"] {
+					border-top: 1px solid black;
+					width: 90%;
+					margin: 0 auto;
+				}
+
+				.dtr-signature-line-for-incharge-print {
+					border-top: 1px solid black;
+					width: 80%; /* Increased width */
+					margin: 0.3in auto 0 auto; /* Increased vertical space */
+					padding-top: 0;
+					font-size: 6pt; /* Increased */
+				}
+				.dtr-incharge-label-print {
+					font-size: 8.5pt; /* Increased */
+					margin-top: 3px; /* Increased space */
+					margin-bottom: 0;
+				}
+
+				td[colspan="2"] {
+					font-weight: normal;
+				}
+
+				/* Hide the print button */
+				.no-print {
+					display: none !important;
+				}
+			}
+		</style>
+	</head>
+	<body>
+        <div class="no-print text-center mb-8">
+            <button
+                onclick="window.print()"
+                class="bg-blue-600 text-white px-6 py-3 rounded-lg shadow-md hover:bg-blue-700 transition duration-300"
+            >
+                Print
+            </button>
+            <a
+                href="/form"
+                class="ml-4 bg-gray-300 text-gray-800 px-6 py-3 rounded-lg shadow-md hover:bg-gray-400 transition duration-300"
+            >
+                Cancel
+            </a>
+        </div>
+
+        <div class="main-content-wrapper">
+            <% dtrs.forEach((dtr, index) => { %>
+            <div class="dtr-container">
+                <div class="dtr-header-section">
+                    <p class="dtr-civil-service-form">Civil Service Form No. 48</p>
+                    <h1 class="dtr-title">DAILY TIME RECORD</h1>
+                    <p class="dtr-separator">-----o0o-----</p>
+
+                    <p class="dtr-name-line-preview dtr-name-line-print">
+                        <%= dtr.empName %>
+                    </p>
+                    <p class="dtr-name-label-print">(Employee Name)</p>
+
+                    <% const [year, monthNumRaw] = dtr.month.split("-"); %> <% const
+                    monthName = new Date(parseInt(year), parseInt(monthNumRaw) - 1,
+                    1).toLocaleString('default', { month: 'long' }); %>
+                    <p class="dtr-month-info-preview dtr-for-month-print">
+                        For the month of <%= monthName %>, <%= year %>
+                    </p>
+
+                    <div class="dtr-official-hours-preview dtr-official-hours-print">
+                        <p>
+                            Official hours for arrival &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{ Regular
+                            days 8-12, 1-5 }
+                        </p>
+                        <p class="indent">
+                            and departure &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{
+                            Saturdays ________ }
+                        </p>
+                    </div>
+                </div>
+
+                <table class="dtr-table">
+                    <thead>
+                        <tr>
+                            <th rowspan="2">Day</th>
+                            <th colspan="2">A.M.</th>
+                            <th colspan="2">P.M.</th>
+                            <th colspan="2">UNDERTIME</th>
+                        </tr>
+                        <tr>
+                            <th>Arrival</th>
+                            <th>Depar-<br />ture</th>
+                            <th>Arrival</th>
+                            <th>Depar-<br />ture</th>
+                            <th>Hours</th>
+                            <th>Minutes</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% dtr.timeSummary.forEach(daily => { %>
+                        <tr>
+                            <td><%= daily.day %></td>
+                            <td><%= daily.am_arrival_12hr %></td>
+                            <td><%= daily.am_departure_12hr %></td>
+                            <td><%= daily.pm_arrival_12hr %></td>
+                            <td><%= daily.pm_departure_12hr %></td>
+                            <% if (daily.undertime_hours === 'Saturday' ||
+                            daily.undertime_hours === 'Sunday') { %>
+                            <td
+                                colspan="2"
+                                style="
+                                    text-align: center;
+                                    font-style: italic;
+                                    border-left: 1px solid black;
+                                    border-right: 1px solid black;
+                                "
+                            >
+                                <%= daily.undertime_hours %>
+                            </td>
+                            <% } else { %>
+                            <td><%= daily.undertime_hours %></td>
+                            <td><%= daily.undertime_minutes %></td>
+                            <% } %>
+                        </tr>
+                        <% }) %>
+                    </tbody>
+                    <tfoot>
+                        <tr class="font-bold bg-gray-100 total-row">
+                            <td colspan="5" class="text-right">TOTAL</td>
+                            <td><%= dtr.totalUndertimeHours %></td>
+                            <td><%= dtr.totalUndertimeMinutes %></td>
+                        </tr>
+                    </tfoot>
+                </table>
+
+                <p class="dtr-certification-text-preview dtr-certification-text-print">
+                    I CERTIFY on my honor that the above is a true and correct report of
+                    the hours of work performed, record of which was made daily at the
+                    time of arrival at and departure from office.
+                </p>
+
+                <div style="margin-top: 0.25in; text-align: center">
+                    <p
+                        style="
+                            font-weight: bold;
+                            font-size: 1rem;
+                            margin-bottom: 2px;
+                        "
+                    >
+                        <%= dtr.empName %>
+                    </p>
+                    <div
+                        style="border-top: 1px solid black; width: 2.5in; margin: 0 auto"
+                    ></div>
+                </div>
+
+                <div
+                    class="dtr-verification-section-preview dtr-verification-section-print"
+                >
+                    <p class="text-left italic">
+                        Verified as to the prescribed office hours.
+                    </p>
+                    <div class="dtr-signature-line-for-incharge-print"></div>
+                    <p class="dtr-incharge-label-print">In-charge</p>
+                </div>
+            </div>
+            <% }) %>
+        </div>
+    </body>
+</html>

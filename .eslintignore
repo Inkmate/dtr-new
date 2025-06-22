@@ -1,0 +1,4 @@
+# .eslintignore
+views/*.ejs
+# or to ignore all ejs files in your project:
+**/*.ejs
